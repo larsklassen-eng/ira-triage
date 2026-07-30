@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
+from pydantic import Field, ValidationError
 
 
 class Settings(BaseSettings):
@@ -20,6 +20,23 @@ class Settings(BaseSettings):
     request_timeout_seconds: float = 30.0
 
 
+class ConfigurationError(RuntimeError):
+    """Raised when required configuration is missing or malformed.
+
+    This is a startup problem, not a domain problem: nothing the agent does at
+    runtime can recover from it, so it never reaches the model as a tool result.
+    """
+
+
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    return Settings()
+    try:
+        return Settings()  # type: ignore[call-arg]
+    except ValidationError as exc:
+        missing = ", ".join(
+            str(error["loc"][0]).upper() for error in exc.errors() if error["loc"]
+        )
+        raise ConfigurationError(
+            f"Invalid or missing configuration: {missing}. "
+            f"Set it in the environment or copy .env.example to .env and fill it in."
+        ) from exc
