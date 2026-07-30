@@ -4,8 +4,7 @@ import re
 from enum import StrEnum
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from decimal import Decimal, InvalidOperation
-from typing import Any
-from anthropic.types import Message
+from anthropic.types import Message, ToolParam
 from anthropic import AsyncAnthropic
 from ..domain.models import AccountType, TransferMethod
 from ..settings import get_settings
@@ -106,13 +105,13 @@ wrong extraction costs a misdirected transfer.\
 """
 
 
-def build_extraction_tool() -> dict[str, Any]:
+def build_extraction_tool() -> ToolParam:
     return {
         "name": EXTRACTION_TOOL_NAME,
-        "description": {
+        "description": (
             "Record the transfer intent extracted from a customer message. "
             "Call this exactly once with whatever the message supports."
-        },
+        ),
         "input_schema": TransferIntent.model_json_schema(),
     }
 
