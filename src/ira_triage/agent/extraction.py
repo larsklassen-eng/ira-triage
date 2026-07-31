@@ -145,7 +145,7 @@ def parse_extraction(message: Message) -> TransferIntent:
     )
 
 
-async def exctract_intent(
+async def extract_intent(
     user_text: str,
     *,
     client: AsyncAnthropic | None = None

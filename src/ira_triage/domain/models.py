@@ -57,7 +57,7 @@ class Account(DomainModel):
     balance: Money
     opened_on: date
 
-    masked_number: str = Field(pattern="r^\*{4}\d{4}$")
+    masked_number: str = Field(pattern=r"^\*{4}\d{4}$")
     is_restricted: bool = False
     restriction_note: str | None = None
 

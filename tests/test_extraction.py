@@ -1,18 +1,19 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from decimal import Decimal
 from typing import Any, cast
 
 import pytest
 from anthropic import AsyncAnthropic
-from anthropic.types import Message, TextBlock, ToolUseBlock, Usage
+from anthropic.types import Message, StopReason, TextBlock, ToolUseBlock, Usage
 
 from ira_triage.agent.extraction import (
     EXTRACTION_TOOL_NAME,
     ExtractionFailed,
     TransferIntent,
     build_extraction_tool,
-    exctract_intent,
+    extract_intent,
     fence,
     parse_extraction,
 )
@@ -21,7 +22,7 @@ from ira_triage.settings import get_settings
 
 
 @pytest.fixture(autouse=True)
-def api_key(monkeypatch: pytest.MonkeyPatch) -> None:
+def api_key(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     """Give `get_settings()` a key to find, and drop its cache between tests.
 
     `get_settings` is `lru_cache`d, so without the clear the first test to call
@@ -33,7 +34,7 @@ def api_key(monkeypatch: pytest.MonkeyPatch) -> None:
     get_settings.cache_clear()
 
 
-def make_message(*blocks: Any, stop_reason: str = "tool_use") -> Message:
+def make_message(*blocks: Any, stop_reason: StopReason = "tool_use") -> Message:
     """Build the `Message` the SDK would have returned, without a network call.
 
     Response types are plain Pydantic models, so a test can construct one
@@ -78,9 +79,9 @@ def test_extraction_tool_is_a_well_formed_definition() -> None:
 
     assert tool["name"] == EXTRACTION_TOOL_NAME
     # Guards the set-literal bug: braces here would make this a set[str], which
-    # the API rejects.
-    assert isinstance(tool["description"], str)
-    schema = tool["input_schema"]
+    # the API rejects. Every ToolParam key is optional, hence `.get`.
+    assert isinstance(tool.get("description"), str)
+    schema = cast(dict[str, Any], tool["input_schema"])
     assert schema["type"] == "object"
     assert "source_custodian_raw" in schema["properties"]
 
@@ -131,7 +132,7 @@ def test_fence_neutralizes_an_early_close() -> None:
 async def test_extract_intent_forces_the_tool_and_fences_the_input() -> None:
     fake = FakeAnthropic(make_message(tool_use(source_custodian_raw="Schwab")))
 
-    intent = await exctract_intent(
+    intent = await extract_intent(
         "Move my Roth from Schwab.", client=cast(AsyncAnthropic, fake)
     )
 
